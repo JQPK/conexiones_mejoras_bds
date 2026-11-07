@@ -11,8 +11,12 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  Moon,
+  Monitor,
   Package,
+  ShieldCheckIcon,
   ShoppingCart,
+  Sun,
   Users,
   Workflow,
   X,
@@ -202,7 +206,7 @@ export function AdminShell({
               href="/usuarios/"
               className="flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-semibold text-slate-300 hover:bg-white/10 hover:text-white"
             >
-              <Users size={17} aria-hidden="true" />
+              <ShieldCheckIcon size={17} aria-hidden="true" />
               Acceso y usuarios
             </a>
           )}
@@ -218,7 +222,7 @@ export function AdminShell({
 
           {hasPermission(user.role, "sales:read") && (
             <SidebarGroup
-              label="Ventas y comprobantes"
+              label="Control de ventas"
               icon={ShoppingCart}
               open={openGroups.sales}
               onToggle={() =>
@@ -235,7 +239,7 @@ export function AdminShell({
           )}
           {hasPermission(user.role, "catalog:read") && (
             <SidebarGroup
-              label="Productos y categorías"
+              label="Catálogo de productos"
               icon={Package}
               open={openGroups.catalog}
               onToggle={() =>
@@ -360,9 +364,25 @@ export function AdminShell({
             <p className="text-sm font-bold sm:text-base">{title}</p>
           </div>
           <div className="flex items-center gap-3">
-            <span className="hidden text-sm text-text-secondary sm:inline">
-              {user.displayName}
-            </span>
+            {/* Theme mode toggle light/dark */}
+            <button
+              type="button"
+              className="rounded-lg p-2 hover:bg-surface-hover"
+            >
+              <span className="flex items-center gap-2 text-sm">
+                <Monitor size={16} aria-hidden="true" />
+                <span className="hidden">Sistema</span>
+              </span>
+              <span className="items-center gap-2 text-sm hidden">
+                <Sun size={16} aria-hidden="true" />
+                <span>Claro</span>
+              </span>
+              <span className="items-center gap-2 text-sm hidden">
+                <Moon size={16} aria-hidden="true" />
+                <span>Oscuro</span>
+              </span>
+            </button>
+
             <button
               type="button"
               onClick={logout}
