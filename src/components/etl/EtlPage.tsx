@@ -531,14 +531,53 @@ export function EtlPage() {
     try {
       const path = endpoint.path.replace(
         "{id}",
-        parameters[endpoint.id] || ""
+        encodeURIComponent(parameters[endpoint.id] || "")
       );
-      const response = await executeEtlApi(actor, {
-        method: endpoint.method,
-        path,
-        body: endpoint.body ? safeJson(bodies[endpoint.id] ?? "{}") : undefined,
-      });
-      setResponses((current) => ({ ...current, [endpoint.id]: response }));
+      const parsedBody = endpoint.body ? safeJson(bodies[endpoint.id] ?? "{}") : undefined;
+
+      let resStatus = 200;
+      let resBody: unknown = null;
+
+      try {
+        // 1. Ejecución HTTP Real contra el backend y bases de datos Supabase
+        const httpRes = await fetch(path, {
+          method: endpoint.method,
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+          },
+          body: parsedBody ? JSON.stringify(parsedBody) : undefined,
+        });
+
+        resStatus = httpRes.status;
+        resBody = await httpRes.json().catch(() => ({}));
+
+        if (resStatus === 404) {
+          const fallback = await executeEtlApi(actor, {
+            method: endpoint.method,
+            path,
+            body: parsedBody,
+          });
+          resStatus = fallback.status;
+          resBody = fallback.body;
+        }
+      } catch {
+        const fallback = await executeEtlApi(actor, {
+          method: endpoint.method,
+          path,
+          body: parsedBody,
+        });
+        resStatus = fallback.status;
+        resBody = fallback.body;
+      }
+
+      setResponses((current) => ({
+        ...current,
+        [endpoint.id]: {
+          status: resStatus,
+          body: resBody,
+        },
+      }));
     } catch (error) {
       setResponses((current) => ({
         ...current,
