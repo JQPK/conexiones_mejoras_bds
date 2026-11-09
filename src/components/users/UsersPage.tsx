@@ -7,7 +7,7 @@ import {
 } from "react";
 import type { User, UserRole } from "@/domain/models";
 import { validateUser, type ValidationErrors } from "@/domain/validation";
-import { authService } from "@/services/authService";
+import { authService, DEMO_LOGIN_PASSWORD } from "@/services/authService";
 import { userService } from "@/services/userService";
 import { ActionButton } from "@/components/ui/ActionButton";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -15,8 +15,11 @@ import { DataTable, type DataColumn } from "@/components/ui/DataTable";
 import { FormField } from "@/components/ui/FormField";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import {
+  ClipboardCopy,
   Eye,
+  EyeOff,
   Filter,
+  KeyRound,
   Pencil,
   Plus,
   Save,
@@ -47,6 +50,26 @@ const emptyDraft: Draft = {
   employeeId: "",
 };
 
+/** Componente interno: muestra la contraseña enmascarada con toggle de visibilidad */
+function PasswordCell() {
+  const [visible, setVisible] = useState(false);
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span className="font-mono text-sm">
+        {visible ? DEMO_LOGIN_PASSWORD : "••••••••"}
+      </span>
+      <button
+        type="button"
+        aria-label={visible ? "Ocultar contraseña" : "Mostrar contraseña"}
+        onClick={() => setVisible((v) => !v)}
+        className="text-text-secondary hover:text-text-primary"
+      >
+        {visible ? <EyeOff size={14} /> : <Eye size={14} />}
+      </button>
+    </span>
+  );
+}
+
 export function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -65,6 +88,13 @@ export function UsersPage() {
     text: string;
   } | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // Estado para la tarjeta de credenciales global
+  const [cardVisible, setCardVisible] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  // Estado para el toggle de contraseña en el modal de detalle
+  const [detailPwVisible, setDetailPwVisible] = useState(false);
 
   const reload = useCallback(async () => {
     const actor = await authService.currentUser();
@@ -86,6 +116,21 @@ export function UsersPage() {
       }),
     );
   }, [reload]);
+
+  // Resetear visibilidad de contraseña en detalle al cerrar modal
+  useEffect(() => {
+    if (!viewing) setDetailPwVisible(false);
+  }, [viewing]);
+
+  async function copyPassword() {
+    try {
+      await navigator.clipboard.writeText(DEMO_LOGIN_PASSWORD);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // fallback silencioso
+    }
+  }
 
   const columns = useMemo<DataColumn<User>[]>(
     () => [
@@ -116,6 +161,11 @@ export function UsersPage() {
           </span>
         ),
         searchable: (user) => user.role,
+      },
+      {
+        key: "password",
+        header: "Contraseña",
+        value: () => <PasswordCell />,
       },
       {
         key: "status",
@@ -253,13 +303,50 @@ export function UsersPage() {
             Acceso y usuarios
           </h1>
           <p className="mt-2 text-sm text-text-secondary">
-            Gestiona cuentas y roles. Las desactivaciones preservan la
-            trazabilidad.
+            Gestiona cuentas, roles y credenciales de acceso. Las desactivaciones
+            preservan la trazabilidad.
           </p>
         </div>
         <ActionButton icon={Plus} onClick={openCreate}>
           Crear usuario
         </ActionButton>
+      </div>
+
+      {/* Tarjeta de credenciales compartidas */}
+      <div className="flex items-start gap-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
+        <span className="mt-0.5 shrink-0 text-amber-500">
+          <KeyRound size={20} />
+        </span>
+        <div className="flex-1">
+          <p className="text-sm font-bold text-amber-800">
+            Credenciales de acceso del sistema
+          </p>
+          <p className="mt-0.5 text-xs text-amber-700">
+            Todos los usuarios del sistema comparten esta contraseña de acceso.
+          </p>
+          <div className="mt-2 flex items-center gap-3">
+            <span className="font-mono text-sm font-semibold text-amber-900">
+              {cardVisible ? DEMO_LOGIN_PASSWORD : "••••••••"}
+            </span>
+            <button
+              type="button"
+              aria-label={cardVisible ? "Ocultar contraseña" : "Mostrar contraseña"}
+              onClick={() => setCardVisible((v) => !v)}
+              className="text-amber-600 hover:text-amber-800"
+            >
+              {cardVisible ? <EyeOff size={15} /> : <Eye size={15} />}
+            </button>
+            <button
+              type="button"
+              aria-label="Copiar contraseña"
+              onClick={() => void copyPassword()}
+              className="flex items-center gap-1 text-xs text-amber-600 hover:text-amber-800"
+            >
+              <ClipboardCopy size={14} />
+              {copied ? "¡Copiado!" : "Copiar"}
+            </button>
+          </div>
+        </div>
       </div>
 
       <div className="flex flex-col gap-3 rounded-xl border border-border-default bg-white p-4 sm:flex-row sm:items-end">
@@ -478,6 +565,20 @@ export function UsersPage() {
               <dd>{viewing.role}</dd>
               <dt className="text-text-secondary">Empleado</dt>
               <dd>{viewing.employeeId || "No asignado"}</dd>
+              <dt className="text-text-secondary">Contraseña de acceso</dt>
+              <dd className="flex items-center gap-2">
+                <span className="font-mono">
+                  {detailPwVisible ? DEMO_LOGIN_PASSWORD : "••••••••"}
+                </span>
+                <button
+                  type="button"
+                  aria-label={detailPwVisible ? "Ocultar contraseña" : "Mostrar contraseña"}
+                  onClick={() => setDetailPwVisible((v) => !v)}
+                  className="text-text-secondary hover:text-text-primary"
+                >
+                  {detailPwVisible ? <EyeOff size={14} /> : <Eye size={14} />}
+                </button>
+              </dd>
               <dt className="text-text-secondary">Estado</dt>
               <dd>
                 <StatusBadge status={viewing.status} />

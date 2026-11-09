@@ -2,7 +2,6 @@
 import Layout from "@/layouts/Layout.astro";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { LayoutDashboard, ShieldCheck, Cloud } from "@lucide/astro";
-import { SyncRealDataButton } from "@/components/home/SyncRealDataButton";
 ---
 
 <Layout title="Inicio · Arimana Bazar">
@@ -39,7 +38,17 @@ import { SyncRealDataButton } from "@/components/home/SyncRealDataButton";
         </p>
       </article>
 
-      <SyncRealDataButton client:load />
+      <article class="rounded-xl border border-border-default bg-white p-5 shadow-card">
+        <p
+          class="flex items-center gap-2 text-sm font-semibold text-text-secondary"
+        >
+          <Cloud size={16} aria-hidden="true" />Conexión en la nube
+        </p>
+        <p class="mt-2 font-bold">Supabase Cloud OLTP + DW</p>
+        <p class="mt-1 text-sm text-text-secondary">
+          Los datos se sincronizan automáticamente desde la arquitectura híbrida en cada sesión.
+        </p>
+      </article>
     </section>
   </AdminShell>
 </Layout>
