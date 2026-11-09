@@ -79,4 +79,8 @@
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background-color: #94a3b8;
   }
+
+  pre {
+    @apply scrollbar-thin scrollbar-thumb-text-muted scrollbar-track-transparent;
+  }
 }
