@@ -10,10 +10,8 @@ const getEnv = (key: string): string => {
   if (typeof process !== "undefined" && process.env && process.env[key]) {
     return process.env[key]!;
   }
-  // @ts-expect-error import.meta.env provisto por Vite / Astro
-  if (typeof import.meta !== "undefined" && import.meta.env && import.meta.env[key]) {
-    // @ts-expect-error import.meta.env provisto por Vite / Astro
-    return import.meta.env[key] as string;
+  if (typeof import.meta !== "undefined" && import.meta.env && (import.meta.env as Record<string, string | undefined>)[key]) {
+    return (import.meta.env as Record<string, string | undefined>)[key] as string;
   }
   return "";
 };
