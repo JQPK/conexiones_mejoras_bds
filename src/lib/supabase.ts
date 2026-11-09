@@ -21,8 +21,10 @@ const getEnv = (key: string): string => {
 
 const supabaseUrl = getEnv("PUBLIC_SUPABASE_URL") || getEnv("SUPABASE_URL");
 const supabaseKey =
+  getEnv("SUPABASE_SECRET_KEY") ||
   getEnv("SUPABASE_SERVICE_ROLE_KEY") ||
   getEnv("PUBLIC_SUPABASE_ANON_KEY") ||
+  getEnv("SUPABASE_PUBLISHABLE_KEY") ||
   getEnv("SUPABASE_ANON_KEY");
 
 let clientInstance: SupabaseClient | null = null;
