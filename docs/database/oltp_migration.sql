@@ -246,7 +246,6 @@ CREATE TABLE IF NOT EXISTS receipts (
     updated_at      timestamptz NOT NULL DEFAULT clock_timestamp(),
     status          entity_status NOT NULL DEFAULT 'active',
     demo            boolean NOT NULL DEFAULT false,
-    CONSTRAINT uq_receipt_series_number UNIQUE (series, number),
     CONSTRAINT uq_receipt_sale UNIQUE (sale_id)
 );
 
