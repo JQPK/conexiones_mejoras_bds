@@ -301,6 +301,18 @@ export const localRepository = {
     } finally { db.close(); }
   },
   async seedDemoData(): Promise<void> {
+    let sourceData = DEMO_DATA;
+    const isVitest = typeof process !== 'undefined' && Boolean(process.env?.VITEST);
+    if (!isVitest && typeof window !== 'undefined') {
+      try {
+        const res = await fetch("/realSeed.json");
+        if (res.ok) {
+          sourceData = (await res.json()) as typeof DEMO_DATA;
+        }
+      } catch (err) {
+        console.warn("No se pudo cargar realSeed.json, recurriendo a semilla base:", err);
+      }
+    }
     const db = await openDatabase();
     try {
       const tx = db.transaction(STORES, "readwrite");
@@ -310,7 +322,7 @@ export const localRepository = {
         records.onsuccess = () => {
           const existing = records.result as EntityByStore[typeof store][];
           const existingIds = new Set(existing.map(item => item.id));
-          const seedRecords = DEMO_DATA[store] as EntityByStore[typeof store][];
+          const seedRecords = (sourceData[store] ?? []) as EntityByStore[typeof store][];
           if (existing.length === 0) {
             for (const item of seedRecords) objectStore.put(item);
             return;
@@ -324,13 +336,38 @@ export const localRepository = {
           }
           // Reference data can be expanded without touching user records. Sales,
           // receipts and ETL history are seeded only when their stores are empty.
-          if (REFERENCE_STORES.includes(store)) for (const item of seedRecords) if (!existingIds.has(item.id)) objectStore.put(item);
+          if (REFERENCE_STORES.includes(store)) {
+            for (const item of seedRecords) {
+              if (!existingIds.has(item.id)) objectStore.put(item);
+            }
+          }
         };
       }
       await new Promise<void>((resolve, reject) => {
         tx.oncomplete = () => resolve();
         tx.onerror = () => reject(tx.error ?? new Error("No se pudieron inicializar los datos del sistema."));
         tx.onabort = () => reject(tx.error ?? new Error("Inicialización cancelada."));
+      });
+    } finally { db.close(); }
+  },
+  async resetWithRealData(): Promise<void> {
+    if (typeof window === "undefined") return;
+    const res = await fetch("/realSeed.json");
+    if (!res.ok) throw new Error("No se pudo descargar realSeed.json");
+    const sourceData = (await res.json()) as typeof DEMO_DATA;
+    const db = await openDatabase();
+    try {
+      const tx = db.transaction(STORES, "readwrite");
+      for (const store of STORES) {
+        const objectStore = tx.objectStore(store);
+        objectStore.clear();
+        const seedRecords = (sourceData[store] ?? []) as EntityByStore[typeof store][];
+        for (const item of seedRecords) objectStore.put(item);
+      }
+      await new Promise<void>((resolve, reject) => {
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error ?? new Error("No se pudieron restaurar los datos reales."));
+        tx.onabort = () => reject(tx.error ?? new Error("Restauración cancelada."));
       });
     } finally { db.close(); }
   },
