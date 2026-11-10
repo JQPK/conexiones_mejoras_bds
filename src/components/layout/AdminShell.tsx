@@ -2,7 +2,6 @@ import { useEffect, useState, type ReactNode } from "react";
 import type { User } from "@/domain/models";
 import { hasPermission, type Permission } from "@/domain/permissions";
 import { authService } from "@/services/authService";
-import { localRepository } from "@/persistence/database";
 import {
   BarChart3,
   Building2,
@@ -108,7 +107,6 @@ export function AdminShell({
     let active = true;
     void (async () => {
       try {
-        await localRepository.seedDemoData();
         const current = await authService.currentUser();
         if (!active) return;
         if (!current) {

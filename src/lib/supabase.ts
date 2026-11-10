@@ -6,6 +6,16 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
  * 2. OLAP / DW: arimana-dw (Data Warehouse y cubos analíticos)
  */
 
+if (typeof process !== "undefined" && !process.env.PUBLIC_SUPABASE_URL) {
+  try {
+    if (typeof process.loadEnvFile === "function") {
+      process.loadEnvFile(".env");
+    }
+  } catch {
+    // .env ya cargado o no disponible
+  }
+}
+
 const getEnv = (key: string): string => {
   if (typeof process !== "undefined" && process.env && process.env[key]) {
     return process.env[key]!;
@@ -16,34 +26,42 @@ const getEnv = (key: string): string => {
   return "";
 };
 
-// 1. Configuración OLTP
-const oltpUrl = getEnv("PUBLIC_SUPABASE_URL") || getEnv("SUPABASE_URL");
-const oltpKey =
-  getEnv("SUPABASE_SECRET_KEY") ||
-  getEnv("SUPABASE_SERVICE_ROLE_KEY") ||
-  getEnv("PUBLIC_SUPABASE_ANON_KEY") ||
-  getEnv("SUPABASE_PUBLISHABLE_KEY") ||
-  getEnv("SUPABASE_ANON_KEY");
+export function getOltpUrl(): string {
+  return getEnv("PUBLIC_SUPABASE_URL") || getEnv("SUPABASE_URL");
+}
 
-// 2. Configuración OLAP / DW
-const dwUrl =
-  getEnv("PUBLIC_SUPABASE_DW_URL") ||
-  getEnv("SUPABASE_DW_URL");
-const dwKey =
-  getEnv("SUPABASE_DW_SECRET_KEY") ||
-  getEnv("SUPABASE_DW_SERVICE_ROLE_KEY") ||
-  getEnv("PUBLIC_SUPABASE_DW_ANON_KEY") ||
-  getEnv("SUPABASE_DW_PUBLISHABLE_KEY");
+export function getOltpKey(): string {
+  return (
+    getEnv("SUPABASE_SECRET_KEY") ||
+    getEnv("SUPABASE_SERVICE_ROLE_KEY") ||
+    getEnv("PUBLIC_SUPABASE_ANON_KEY") ||
+    getEnv("SUPABASE_PUBLISHABLE_KEY") ||
+    getEnv("SUPABASE_ANON_KEY")
+  );
+}
+
+export function getDwUrl(): string {
+  return getEnv("PUBLIC_SUPABASE_DW_URL") || getEnv("SUPABASE_DW_URL");
+}
+
+export function getDwKey(): string {
+  return (
+    getEnv("SUPABASE_DW_SECRET_KEY") ||
+    getEnv("SUPABASE_DW_SERVICE_ROLE_KEY") ||
+    getEnv("PUBLIC_SUPABASE_DW_ANON_KEY") ||
+    getEnv("SUPABASE_DW_PUBLISHABLE_KEY")
+  );
+}
 
 let oltpInstance: SupabaseClient | null = null;
 let dwInstance: SupabaseClient | null = null;
 
 export function isSupabaseConfigured(): boolean {
-  return Boolean(oltpUrl && oltpKey);
+  return Boolean(getOltpUrl() && getOltpKey());
 }
 
 export function isDwConfigured(): boolean {
-  return Boolean(dwUrl && dwKey);
+  return Boolean(getDwUrl() && getDwKey());
 }
 
 export function getSupabase(): SupabaseClient {
@@ -57,7 +75,7 @@ export function getSupabaseOltp(): SupabaseClient {
     );
   }
   if (!oltpInstance) {
-    oltpInstance = createClient(oltpUrl, oltpKey, {
+    oltpInstance = createClient(getOltpUrl(), getOltpKey(), {
       auth: { persistSession: false },
     });
   }
@@ -71,7 +89,7 @@ export function getSupabaseDw(): SupabaseClient {
     );
   }
   if (!dwInstance) {
-    dwInstance = createClient(dwUrl, dwKey, {
+    dwInstance = createClient(getDwUrl(), getDwKey(), {
       auth: { persistSession: false },
     });
   }

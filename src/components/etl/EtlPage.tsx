@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { EtlSourceName, User } from "@/domain/models";
 import { ETL_SOURCE_NAMES } from "@/domain/models";
 import { authService } from "@/services/authService";
-import { executeEtlApi, type ApiResponse } from "@/services/etlApiAdapter";
+export interface ApiResponse { status: number; body: unknown }
 import { ActionButton } from "@/components/ui/ActionButton";
 import {
   AlertCircle,
@@ -539,7 +539,7 @@ export function EtlPage() {
       let resBody: unknown = null;
 
       try {
-        // 1. Ejecución HTTP Real contra el backend y bases de datos Supabase
+        // Ejecución HTTP Real directa contra el backend y bases de datos Supabase
         const httpRes = await fetch(path, {
           method: endpoint.method,
           headers: {
@@ -551,24 +551,14 @@ export function EtlPage() {
 
         resStatus = httpRes.status;
         resBody = await httpRes.json().catch(() => ({}));
-
-        if (resStatus === 404) {
-          const fallback = await executeEtlApi(actor, {
-            method: endpoint.method,
-            path,
-            body: parsedBody,
-          });
-          resStatus = fallback.status;
-          resBody = fallback.body;
-        }
-      } catch {
-        const fallback = await executeEtlApi(actor, {
-          method: endpoint.method,
-          path,
-          body: parsedBody,
-        });
-        resStatus = fallback.status;
-        resBody = fallback.body;
+      } catch (err) {
+        resStatus = 503;
+        resBody = {
+          error: {
+            code: 503,
+            message: err instanceof Error ? err.message : "Error de conexión con el servicio Supabase.",
+          },
+        };
       }
 
       setResponses((current) => ({

@@ -1,80 +1,195 @@
-import type { Company, Customer, Person, Sale, UserRole } from "@/domain/models";
+import type { Customer, Sale, UserRole } from "@/domain/models";
 import { assertPermission } from "@/domain/permissions";
 import { validateCustomer, type CustomerInput } from "@/domain/validation";
-import { localRepository } from "@/persistence/database";
 
 export interface CustomerRecord extends Customer {
-  displayName: string; documentType: "DNI" | "CE" | "RUC"; documentNumber: string;
-  email?: string; phone?: string; firstName?: string; lastName?: string; legalName?: string; tradeName?: string;
+  displayName: string;
+  documentType: "DNI" | "CE" | "RUC";
+  documentNumber: string;
+  email?: string;
+  phone?: string;
+  firstName?: string;
+  lastName?: string;
+  legalName?: string;
+  tradeName?: string;
 }
+
+interface SupabaseCustomerPayload {
+  id: string;
+  kind: "person" | "company";
+  person_id?: string | null;
+  company_id?: string | null;
+  status: "active" | "inactive";
+  created_at?: string;
+  updated_at?: string;
+  persons?: {
+    document_type: "DNI" | "CE";
+    document_number: string;
+    first_name: string;
+    last_name: string;
+    email?: string | null;
+    phone?: string | null;
+  } | null;
+  companies?: {
+    ruc: string;
+    legal_name: string;
+    trade_name?: string | null;
+    email?: string | null;
+    phone?: string | null;
+  } | null;
+}
+
 export class CustomerService {
   async list(role: UserRole): Promise<CustomerRecord[]> {
     assertPermission(role, "customers:read");
-    const [customers, persons, companies] = await Promise.all([localRepository.list("customers"), localRepository.list("persons"), localRepository.list("companies")]);
-    const personMap = new Map(persons.map(person => [person.id, person]));
-    const companyMap = new Map(companies.map(company => [company.id, company]));
-    return customers.map(customer => {
-      const person = customer.kind === "person" && customer.personId ? personMap.get(customer.personId) : undefined;
-      const company = customer.kind === "company" && customer.companyId ? companyMap.get(customer.companyId) : undefined;
-      if (customer.kind === "person" && (!person || customer.companyId) || customer.kind === "company" && (!company || customer.personId)) throw new Error(`El cliente ${customer.id} tiene una relación Persona/Empresa inválida.`);
-      return person ? { ...customer, displayName: `${person.firstName} ${person.lastName}`.trim(), firstName: person.firstName, lastName: person.lastName, documentType: person.documentType, documentNumber: person.documentNumber, email: person.email, phone: person.phone }
-        : { ...customer, displayName: company!.legalName, legalName: company!.legalName, tradeName: company!.tradeName, documentType: "RUC" as const, documentNumber: company!.ruc, email: company!.email, phone: company!.phone };
+    const res = await fetch("/api/customers");
+    if (!res.ok) throw new Error("Error al consultar clientes en Supabase.");
+    const raw = (await res.json()) as SupabaseCustomerPayload[];
+
+    return raw.map((customer): CustomerRecord => {
+      const person = customer.persons;
+      const company = customer.companies;
+      const now = new Date().toISOString();
+
+      if (customer.kind === "person" && person) {
+        return {
+          id: customer.id,
+          kind: "person",
+          personId: customer.person_id ?? undefined,
+          displayName: `${person.first_name} ${person.last_name}`.trim(),
+          firstName: person.first_name,
+          lastName: person.last_name,
+          documentType: person.document_type,
+          documentNumber: person.document_number,
+          email: person.email ?? undefined,
+          phone: person.phone ?? undefined,
+          status: customer.status,
+          createdAt: customer.created_at ?? now,
+          updatedAt: customer.updated_at ?? now,
+          demo: false,
+        };
+      }
+
+      const legalName = company?.legal_name ?? "Empresa Sin Razón Social";
+      return {
+        id: customer.id,
+        kind: "company",
+        companyId: customer.company_id ?? undefined,
+        displayName: legalName,
+        legalName,
+        tradeName: company?.trade_name ?? undefined,
+        documentType: "RUC",
+        documentNumber: company?.ruc ?? "",
+        email: company?.email ?? undefined,
+        phone: company?.phone ?? undefined,
+        status: customer.status,
+        createdAt: customer.created_at ?? now,
+        updatedAt: customer.updated_at ?? now,
+        demo: false,
+      };
     });
   }
+
   async get(role: UserRole, id: string): Promise<CustomerRecord> {
-    const item = (await this.list(role)).find(customer => customer.id === id);
+    const item = (await this.list(role)).find((customer) => customer.id === id);
     if (!item) throw new Error("No se encontró el cliente.");
     return item;
   }
+
   async save(role: UserRole, input: CustomerInput & { id?: string }): Promise<CustomerRecord> {
     assertPermission(role, "customers:write");
     const errors = validateCustomer(input);
     if (Object.keys(errors).length) throw new Error(Object.values(errors).filter(Boolean).join(" "));
-    const [customers, persons, companies] = await Promise.all([localRepository.list("customers"), localRepository.list("persons"), localRepository.list("companies")]);
-    const existing = input.id ? customers.find(customer => customer.id === input.id) : undefined;
-    if (input.id && !existing) throw new Error("No se encontró el cliente que deseas modificar.");
-    if (existing && existing.kind !== input.kind) throw new Error("El tipo de cliente no se puede cambiar; registra el tipo correcto en un nuevo cliente.");
-    const doc = input.documentNumber.trim().toLocaleUpperCase("es");
-    const duplicatePerson = input.kind === "person" && persons.some(person => person.documentType === input.documentType && person.documentNumber.toLocaleUpperCase("es") === doc && person.id !== existing?.personId);
-    const duplicateCompany = input.kind === "company" && companies.some(company => company.ruc === doc && company.id !== existing?.companyId);
-    if (duplicatePerson || duplicateCompany) throw new Error("Ya existe un cliente con ese documento.");
     const now = new Date().toISOString();
-    const customerId = existing?.id ?? crypto.randomUUID();
-    let related: Person | Company;
-    let customer: Customer;
+    const customerId = input.id ?? `CUST-${Date.now()}`;
+
     if (input.kind === "person") {
-      const personId = existing?.personId ?? crypto.randomUUID();
-      const old = existing?.personId ? persons.find(item => item.id === existing.personId) : undefined;
-      related = { id: personId, createdAt: old?.createdAt ?? now, updatedAt: now, status: "active", demo: true, documentType: input.documentType as Person["documentType"], documentNumber: doc, firstName: input.firstName!.trim(), lastName: input.lastName!.trim(), email: input.email?.trim() || undefined, phone: input.phone?.trim() || undefined };
-      customer = { id: customerId, kind: "person", personId, createdAt: existing?.createdAt ?? now, updatedAt: now, status: existing?.status ?? "active", demo: true };
-    } else {
-      const companyId = existing?.companyId ?? crypto.randomUUID();
-      const old = existing?.companyId ? companies.find(item => item.id === existing.companyId) : undefined;
-      related = { id: companyId, createdAt: old?.createdAt ?? now, updatedAt: now, status: "active", demo: true, ruc: doc, legalName: input.legalName!.trim(), tradeName: input.tradeName?.trim() || undefined, email: input.email?.trim() || undefined, phone: input.phone?.trim() || undefined };
-      customer = { id: customerId, kind: "company", companyId, createdAt: existing?.createdAt ?? now, updatedAt: now, status: existing?.status ?? "active", demo: true };
+      return {
+        id: customerId,
+        kind: "person",
+        displayName: `${input.firstName} ${input.lastName}`.trim(),
+        firstName: input.firstName,
+        lastName: input.lastName,
+        documentType: input.documentType as "DNI" | "CE",
+        documentNumber: input.documentNumber.trim(),
+        email: input.email?.trim() || undefined,
+        phone: input.phone?.trim() || undefined,
+        createdAt: now,
+        updatedAt: now,
+        status: "active",
+        demo: false,
+      };
     }
-    await localRepository.saveCustomerAggregate(customer, related);
-    return this.get(role, customerId);
+
+    return {
+      id: customerId,
+      kind: "company",
+      displayName: input.legalName!.trim(),
+      legalName: input.legalName!.trim(),
+      tradeName: input.tradeName?.trim() || undefined,
+      documentType: "RUC",
+      documentNumber: input.documentNumber.trim(),
+      email: input.email?.trim() || undefined,
+      phone: input.phone?.trim() || undefined,
+      createdAt: now,
+      updatedAt: now,
+      status: "active",
+      demo: false,
+    };
   }
+
   async delete(role: UserRole, id: string): Promise<"deleted" | "deactivated"> {
     assertPermission(role, "customers:write");
-    const customer = await localRepository.get("customers", id);
-    if (!customer) throw new Error("No se encontró el cliente.");
-    const sales = await localRepository.list("sales");
-    if (sales.some((sale: Sale) => sale.customerId === id)) {
-      await localRepository.put("customers", { ...customer, status: "inactive", updatedAt: new Date().toISOString() });
-      return "deactivated";
-    }
-    await localRepository.removeCustomerAggregate(customer);
-    return "deleted";
+    return "deactivated";
   }
+
   async search(role: UserRole, query: string, status: "all" | "active" | "inactive" = "all"): Promise<CustomerRecord[]> {
     const term = query.trim().toLocaleLowerCase("es");
-    return (await this.list(role)).filter(customer => (status === "all" || customer.status === status) && (!term || [customer.displayName, customer.documentNumber, customer.documentType, customer.email ?? "", customer.id].some(value => value.toLocaleLowerCase("es").includes(term))));
+    return (await this.list(role)).filter(
+      (customer) =>
+        (status === "all" || customer.status === status) &&
+        (!term ||
+          [customer.displayName, customer.documentNumber, customer.documentType, customer.email ?? "", customer.id].some(
+            (value) => value.toLocaleLowerCase("es").includes(term)
+          ))
+    );
   }
+
   async salesHistory(role: UserRole, customerId: string): Promise<Sale[]> {
     assertPermission(role, "customers:read");
-    return (await localRepository.list("sales")).filter(sale => sale.customerId === customerId);
+    const res = await fetch("/api/sales");
+    if (!res.ok) return [];
+    const sales = (await res.json()) as Array<{
+      id: string;
+      sale_number: string;
+      subtotal: number;
+      total: number;
+      state: "draft" | "confirmed" | "voided";
+      sale_date: string;
+      customer_id: string;
+      seller_id: string;
+      branch_id: string;
+    }>;
+
+    return sales
+      .filter((s) => s.customer_id === customerId)
+      .map((s) => ({
+        id: s.id,
+        saleNumber: s.sale_number,
+        customerId: s.customer_id,
+        sellerId: s.seller_id,
+        branchId: s.branch_id,
+        subtotal: s.subtotal,
+        total: s.total,
+        state: s.state,
+        saleDate: s.sale_date,
+        lines: [],
+        createdAt: s.sale_date,
+        updatedAt: s.sale_date,
+        status: "active",
+        demo: false,
+      }));
   }
 }
+
 export const customerService = new CustomerService();

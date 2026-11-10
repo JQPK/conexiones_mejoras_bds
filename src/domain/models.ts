@@ -7,7 +7,7 @@ export interface BaseEntity {
   updatedAt: string;
   status: EntityStatus;
   /** Marca explícita para que los registros de demostración nunca se confundan con datos reales. */
-  demo: true;
+  demo?: boolean;
 }
 
 export interface User extends BaseEntity {
@@ -59,7 +59,7 @@ export interface EtlSourceMetric { source: EtlSourceName; extracted: number; tra
 export interface EtlStageError { source: EtlSourceName; stage: "extract" | "transform" | "load" | "validate"; message: string }
 export interface EtlLoadValidation { totalRows: number; uniqueSourceKeys: number; orphanRows: number; passed: boolean; checkedAt: string }
 export interface EtlLogEvent { id: string; timestamp: string; level: "info" | "warning" | "error"; source?: EtlSourceName; stage?: "extract" | "transform" | "load" | "validate"; message: string }
-export interface EtlExecution { id: string; sourceNames: EtlSourceName[]; state: "pending" | "running" | "completed" | "error"; startedAt: string; completedAt?: string; durationSeconds: number; log: string[]; logEvents?: EtlLogEvent[]; extracted: number; transformed: number; loaded: number; rejected: number; sourceMetrics: EtlSourceMetric[]; errors: EtlStageError[]; validation?: EtlLoadValidation; createdAt: string; updatedAt: string; status: EntityStatus; demo: true }
+export interface EtlExecution { id: string; sourceNames: EtlSourceName[]; state: "pending" | "running" | "completed" | "error"; startedAt: string; completedAt?: string; durationSeconds: number; log: string[]; logEvents?: EtlLogEvent[]; extracted: number; transformed: number; loaded: number; rejected: number; sourceMetrics: EtlSourceMetric[]; errors: EtlStageError[]; validation?: EtlLoadValidation; createdAt: string; updatedAt: string; status: EntityStatus; demo?: boolean }
 export interface ConsolidatedRow extends BaseEntity {
   source: EtlSourceName; sourceKey: string; dimension: string; amount: number; date: string; businessType: "sale" | "b2g-order"; origin: string; duplicateOf?: string;
   transactionKey?: string; productName?: string; categoryName?: string; companyName?: string; sellerName?: string; branchName?: string;
