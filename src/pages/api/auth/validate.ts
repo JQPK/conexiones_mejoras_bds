@@ -5,11 +5,26 @@ export const prerender = false;
 
 export const POST: APIRoute = async ({ request }) => {
   try {
-    const body = await request.json().catch(() => ({})) as { username?: string };
+    let body: Record<string, unknown> = {};
+    try {
+      body = (await request.json()) as Record<string, unknown>;
+    } catch {
+      try {
+        const text = await request.text();
+        body = JSON.parse(text);
+      } catch {
+        body = {};
+      }
+    }
+
     const username = String(body.username ?? "").trim().toLocaleLowerCase("es");
     if (!username) {
-      return new Response(JSON.stringify({ error: { code: 400, message: "El nombre de usuario es obligatorio." } }), { status: 400, headers: { "Content-Type": "application/json" } });
+      return new Response(
+        JSON.stringify({ error: { code: 400, message: "El nombre de usuario es obligatorio." } }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
     }
+
     const supabase = getSupabaseOltp();
     const { data, error } = await supabase
       .from("users")
@@ -19,7 +34,10 @@ export const POST: APIRoute = async ({ request }) => {
       .single();
 
     if (error || !data) {
-      return new Response(JSON.stringify({ error: { code: 404, message: "La cuenta no existe o está desactivada." } }), { status: 404, headers: { "Content-Type": "application/json" } });
+      return new Response(
+        JSON.stringify({ error: { code: 404, message: "La cuenta no existe o está desactivada." } }),
+        { status: 404, headers: { "Content-Type": "application/json" } }
+      );
     }
 
     const user = {
@@ -34,8 +52,21 @@ export const POST: APIRoute = async ({ request }) => {
       updatedAt: data.updated_at,
       demo: false,
     };
-    return new Response(JSON.stringify({ user }), { status: 200, headers: { "Content-Type": "application/json" } });
+
+    return new Response(JSON.stringify({ user }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
   } catch (err) {
-    return new Response(JSON.stringify({ error: { code: 500, message: "Servicio no disponible, intenta más tarde." } }), { status: 500, headers: { "Content-Type": "application/json" } });
+    console.error("Auth validate internal error:", err);
+    return new Response(
+      JSON.stringify({
+        error: {
+          code: 500,
+          message: err instanceof Error ? err.message : "Servicio no disponible, intenta más tarde.",
+        },
+      }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
   }
 };

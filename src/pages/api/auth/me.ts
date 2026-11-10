@@ -7,7 +7,10 @@ export const GET: APIRoute = async ({ url }) => {
   try {
     const userId = url.searchParams.get("userId") ?? "";
     if (!userId) {
-      return new Response(JSON.stringify({ error: { code: 400, message: "userId es requerido." } }), { status: 400, headers: { "Content-Type": "application/json" } });
+      return new Response(
+        JSON.stringify({ error: { code: 400, message: "userId es requerido." } }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
     }
     const supabase = getSupabaseOltp();
     const { data, error } = await supabase
@@ -18,7 +21,10 @@ export const GET: APIRoute = async ({ url }) => {
       .single();
 
     if (error || !data) {
-      return new Response(JSON.stringify({ error: { code: 404, message: "Sesión inválida." } }), { status: 404, headers: { "Content-Type": "application/json" } });
+      return new Response(
+        JSON.stringify({ error: { code: 404, message: "Sesión inválida." } }),
+        { status: 404, headers: { "Content-Type": "application/json" } }
+      );
     }
 
     const user = {
@@ -33,8 +39,20 @@ export const GET: APIRoute = async ({ url }) => {
       updatedAt: data.updated_at,
       demo: false,
     };
-    return new Response(JSON.stringify({ user }), { status: 200, headers: { "Content-Type": "application/json" } });
-  } catch {
-    return new Response(JSON.stringify({ error: { code: 500, message: "Servicio no disponible, intenta más tarde." } }), { status: 500, headers: { "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ user }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  } catch (err) {
+    console.error("Auth me internal error:", err);
+    return new Response(
+      JSON.stringify({
+        error: {
+          code: 500,
+          message: err instanceof Error ? err.message : "Servicio no disponible, intenta más tarde.",
+        },
+      }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
   }
 };
