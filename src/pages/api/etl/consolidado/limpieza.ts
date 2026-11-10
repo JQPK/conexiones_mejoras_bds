@@ -55,7 +55,7 @@ export const POST: APIRoute = async ({ request }) => {
         // Registrar auditoría real en Supabase OLTP
         await oltp.from("audit_logs").insert({
           id: crypto.randomUUID(),
-          actor_id: "admin",
+          actor_id: "usr_admin",
           action: "ETL_CONSOLIDATED_CLEARED",
           target: "fact_ventas (DW) / consolidated_rows (OLTP)",
           result: "success",
@@ -63,7 +63,7 @@ export const POST: APIRoute = async ({ request }) => {
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
           status: "active",
-          demo: true,
+          demo: false,
         });
       } catch (err) {
         console.warn("Error al limpiar consolidated_rows o registrar auditoría en Supabase OLTP:", err);

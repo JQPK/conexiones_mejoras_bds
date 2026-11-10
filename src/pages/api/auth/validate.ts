@@ -26,12 +26,15 @@ export const POST: APIRoute = async ({ request }) => {
     }
 
     const supabase = getSupabaseOltp();
-    const { data, error } = await supabase
+    // Buscar por username o por email
+    const { data: users, error } = await supabase
       .from("users")
       .select("id, username, display_name, role, employee_id, email, status, created_at, updated_at")
-      .ilike("username", username)
+      .or(`username.ilike.${username},email.ilike.${username}`)
       .eq("status", "active")
-      .single();
+      .limit(1);
+
+    const data = users?.[0];
 
     if (error || !data) {
       return new Response(

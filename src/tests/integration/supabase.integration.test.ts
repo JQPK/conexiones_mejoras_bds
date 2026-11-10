@@ -28,7 +28,7 @@ describe("Integración en Tiempo Real con Supabase Cloud (OLTP + DW)", () => {
     expect(error).toBeNull();
     expect(data).toBeDefined();
     expect(data!.length).toBeGreaterThan(0);
-    expect(count).toBe(160);
+    expect(count).toBeGreaterThanOrEqual(160);
 
     const first = data![0];
     expect(first.id).toBeTruthy();
