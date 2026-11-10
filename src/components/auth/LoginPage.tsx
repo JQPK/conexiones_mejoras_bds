@@ -4,11 +4,15 @@ import { ActionButton } from "@/components/ui/ActionButton";
 import { KeyRound, LockKeyhole, LogIn, UserRound } from "lucide-react";
 
 const examples = ["admin.arimana", "vendedor.arimana", "analista.arimana"];
+
 export function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+
   const [error, setError] = useState("");
+
   const [busy, setBusy] = useState(false);
+
   async function submit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
@@ -24,6 +28,7 @@ export function LoginPage() {
       setBusy(false);
     }
   }
+
   return (
     <main className="grid min-h-screen bg-surface-page lg:grid-cols-[1.1fr_0.9fr]">
       <section className="relative hidden overflow-hidden bg-surface-sidebar p-12 text-text-inverse lg:flex lg:flex-col lg:justify-between">

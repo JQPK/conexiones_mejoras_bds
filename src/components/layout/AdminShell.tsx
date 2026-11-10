@@ -23,6 +23,9 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
+type ThemePreference = "light" | "dark" | "system";
+const THEME_STORAGE_KEY = "arimana-theme";
+
 function SidebarLink({
   href,
   label,
@@ -93,6 +96,8 @@ export function AdminShell({
   const [ready, setReady] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [themePreference, setThemePreference] =
+    useState<ThemePreference>("system");
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
     sales: false,
     catalog: false,
@@ -132,6 +137,43 @@ export function AdminShell({
       active = false;
     };
   }, [requiredPermission]);
+
+  useEffect(() => {
+    const saved = window.localStorage.getItem(THEME_STORAGE_KEY);
+    const preference: ThemePreference =
+      saved === "light" || saved === "dark" || saved === "system"
+        ? saved
+        : "system";
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+
+    const applyTheme = (current: ThemePreference) => {
+      const dark =
+        current === "dark" ||
+        (current === "system" && mediaQuery.matches);
+      document.documentElement.dataset.theme = dark ? "dark" : "light";
+      document.documentElement.style.colorScheme = dark ? "dark" : "light";
+    };
+
+    setThemePreference(preference);
+    applyTheme(preference);
+    const handleSystemThemeChange = () => {
+      if (preference === "system") applyTheme("system");
+    };
+    mediaQuery.addEventListener("change", handleSystemThemeChange);
+    return () =>
+      mediaQuery.removeEventListener("change", handleSystemThemeChange);
+  }, []);
+
+  function changeTheme(preference: ThemePreference) {
+    window.localStorage.setItem(THEME_STORAGE_KEY, preference);
+    setThemePreference(preference);
+    const dark =
+      preference === "dark" ||
+      (preference === "system" &&
+        window.matchMedia("(prefers-color-scheme: dark)").matches);
+    document.documentElement.dataset.theme = dark ? "dark" : "light";
+    document.documentElement.style.colorScheme = dark ? "dark" : "light";
+  }
   async function logout() {
     authService.signOut();
     window.location.assign("/login/");
@@ -347,7 +389,7 @@ export function AdminShell({
       )}
 
       <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center justify-between border-b border-border-default bg-white/95 px-4 backdrop-blur sm:px-7">
+        <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center justify-between border-b border-border-default bg-surface-card/95 px-4 backdrop-blur sm:px-7">
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -364,24 +406,28 @@ export function AdminShell({
             <p className="text-sm font-bold sm:text-base">{title}</p>
           </div>
           <div className="flex items-center gap-3">
-            {/* Theme mode toggle light/dark */}
-            <button
-              type="button"
-              className="rounded-lg p-2 hover:bg-surface-hover"
-            >
-              <span className="flex items-center gap-2 text-sm">
-                <Monitor size={16} aria-hidden="true" />
-                <span className="hidden">Sistema</span>
-              </span>
-              <span className="items-center gap-2 text-sm hidden">
+            <label className="flex items-center gap-2 rounded-lg border border-border-default px-2.5 py-2 text-sm font-semibold hover:bg-surface-hover">
+              {themePreference === "light" ? (
                 <Sun size={16} aria-hidden="true" />
-                <span>Claro</span>
-              </span>
-              <span className="items-center gap-2 text-sm hidden">
+              ) : themePreference === "dark" ? (
                 <Moon size={16} aria-hidden="true" />
-                <span>Oscuro</span>
-              </span>
-            </button>
+              ) : (
+                <Monitor size={16} aria-hidden="true" />
+              )}
+              <span className="sr-only">Tema</span>
+              <select
+                aria-label="Seleccionar tema"
+                value={themePreference}
+                onChange={(event) =>
+                  changeTheme(event.target.value as ThemePreference)
+                }
+                className="cursor-pointer bg-transparent outline-none"
+              >
+                <option value="light">Claro</option>
+                <option value="dark">Oscuro</option>
+                <option value="system">Sistema</option>
+              </select>
+            </label>
 
             <button
               type="button"

@@ -27,6 +27,18 @@ const { title = "Arimana Bazar · Gestión de ventas" } = Astro.props;
       type="font/ttf"
       crossorigin="anonymous"
     />
+    <script is:inline>
+      {`
+        (() => {
+          const storageKey = "arimana-theme";
+          const preference = localStorage.getItem(storageKey) || "system";
+          const dark = preference === "dark" ||
+            (preference === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+          document.documentElement.dataset.theme = dark ? "dark" : "light";
+          document.documentElement.style.colorScheme = dark ? "dark" : "light";
+        })();
+      `}
+    </script>
   </head>
   <body>
     <slot />

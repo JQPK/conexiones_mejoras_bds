@@ -403,7 +403,6 @@ export function UsersPage() {
         rows={users}
         columns={columns}
         rowKey={(user) => user.id}
-        searchPlaceholder="Filtrar los resultados…"
         emptyMessage="No hay usuarios que coincidan con los filtros."
       />
 
@@ -509,7 +508,6 @@ export function UsersPage() {
                 <ActionButton
                   type="button"
                   variant="secondary"
-                  icon={X}
                   onClick={() => setFormOpen(false)}
                 >
                   Cancelar
